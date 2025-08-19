@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1024, initial-scale=1" />
+  <title>Golden Scrolls — Reader</title>
+  <!-- Backendless SDK: must be first! -->
+  <script src="https://cdn.backendless.com/sdk/js/latest/backendless.min.js"></script>
+  <!-- TailwindCSS CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+  <!-- Icons & Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Playfair+Display:wght@600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --glass-bg: rgba(255,255,255,0.08);
+      --glass-border: rgba(255,255,255,0.18);
+    }
+    html, body { height: 100%; }
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+    .brand-title { font-family: "Playfair Display", serif; letter-spacing: .5px }
+    .glass { background: var(--glass-bg); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--glass-border); }
+    .hero { background: radial-gradient(1200px 600px at 20% -10%, rgba(255,255,255,.09), transparent),
+                     radial-gradient(1000px 700px at 120% 10%, rgba(0,148,255,.10), transparent),
+                     linear-gradient(180deg, #0b1020 0%, #0a0f1a 60%, #0a0d14 100%);
+    }
+    .btn { @apply inline-flex items-center justify-center rounded-2xl px-4 py-3 font-semibold shadow-lg transform transition active:scale-95; }
+    .btn-primary { @apply text-white; background: linear-gradient(135deg, #6d28d9, #2563eb); box-shadow: 0 10px 25px rgba(37,99,235,.35); }
+    .btn-ghost { @apply text-white bg-white bg-opacity-10; }
+    .tag { @apply text-xs tracking-wide uppercase bg-white bg-opacity-10 rounded-full px-2 py-1; }
+    .card-sheen { position: relative; overflow: hidden; }
+    .card-sheen:before { content:""; position:absolute; inset:-1px; background: linear-gradient(135deg, rgba(255,255,255,.12), rgba(255,255,255,0) 30%);
+                         opacity:.35; pointer-events:none; }
+    .scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }
+    .scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 999px; }
+    .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .line-clamp-8 { display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; overflow: hidden; }
+  </style>
+  <!-- PayPal JS SDK -->
+  <script src="https://www.paypal.com/sdk/js?client-id=AawlYSj0dUanqnCXWOcFyy_SuqPGQ1MqWL738Xn_t39gRSLC-mJj_IrTC6MQ29Db5A5JRh0DVHPB-r19&components=buttons&currency=USD"></script>
+</head>
+<body class="hero text-white">
+  <!-- NAVBAR -->
+  <header class="sticky top-0 z-30 backdrop-blur-lg bg-black bg-opacity-30 border-b border-white border-opacity-10">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-500 grid place-items-center font-extrabold">GS</div>
+      <div class="flex-1">
+        <h1 class="brand-title text-xl sm:text-2xl">Golden Scrolls</h1>
+        <p class="text-xs opacity-70 -mt-1">Read beautifully</p>
+      </div>
+      <div id="userBadge" class="hidden md:flex items-center gap-3">
+        <span id="userEmail" class="tag">guest</span>
+        <button id="logoutBtn" class="btn btn-ghost">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- AUTH / ONBOARD MODAL -->
+  <section id="authSection" class="fixed inset-0 z-50 grid place-items-center bg-black bg-opacity-40 transition duration-300 hidden">
+    <div class="glass rounded-3xl p-6 sm:p-10 max-w-xl w-full shadow-2xl card-sheen relative">
+      <button id="closeAuthModalBtn" class="absolute top-3 right-3 btn btn-ghost px-2 py-1 text-xs">X</button>
+      <div class="flex items-center gap-2 mb-4">
+        <span class="tag">Secure Access</span>
+        <span class="text-xs opacity-70">One device per account</span>
+      </div>
+      <h2 id="authTitle" class="text-3xl font-extrabold mb-2">Welcome back</h2>
+      <p id="authDesc" class="opacity-80 mb-6">Sign in with your email and password.</p>
+      <form id="loginForm" class="grid gap-4">
+        <div>
+          <label class="block text-sm mb-1 opacity-80">Email</label>
+          <input required type="email" id="emailInput" class="w-full rounded-2xl p-3 bg-white bg-opacity-10 border border-white border-opacity-20 focus:outline-none focus:ring-2 focus:ring-indigo-400" placeholder="you@example.com" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1 opacity-80">Name</label>
+          <input required type="text" id="nameInput" class="w-full rounded-2xl p-3 bg-white bg-opacity-10 border border-white border-opacity-20 focus:outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Coolcat" />
+        </div>
+        <div>
+          <label class="block text-sm mb-1 opacity-80">Password</label>
+          <input required type="password" id="passwordInput" class="w-full rounded-2xl p-3 bg-white bg-opacity-10 border border-white border-opacity-20 focus:outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Password" />
+        </div>
+        <div id="confirmPasswordDiv" style="display:none;">
+          <label class="block text-sm mb-1 opacity-80">Confirm Password</label>
+          <input required type="password" id="confirmPasswordInput" class="w-full rounded-2xl p-3 bg-white bg-opacity-10 border border-white border-opacity-20 focus:outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Repeat password" />
+        </div>
+        <div class="flex items-center justify-between">
+          <button class="btn btn-primary" type="submit"><span id="authBtnText">Continue</span></button>
+          <a href="#" id="toggleAuthMode" class="text-sm text-blue-400 underline ml-2"></a>
+        </div>
+        <div>
+          <a href="#" id="forgotPasswordLink" class="text-xs text-blue-300 underline">Forgot Password?</a>
+        </div>
+      </form>
+      <p id="authMsg" class="mt-4 text-sm opacity-80"></p>
+    </div>
+  </section>
+
+  <!-- CATALOG -->
+  <main id="catalogSection" class="hidden max-w-6xl mx-auto px-4 py-10">
+    <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+      <div>
+        <h3 class="text-2xl sm:text-3xl font-extrabold">Your Library</h3>
+        <p class="opacity-70">Discover and read your purchased books.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <input id="searchInput" placeholder="Search by author or description..." class="w-64 max-w-[70vw] rounded-2xl p-2.5 bg-white bg-opacity-10 border border-white border-opacity-20 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+        <button id="refreshBtn" class="btn btn-ghost">Refresh</button>
+      </div>
+    </div>
+    <div id="booksGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+  </main>
+
+  <!-- READER DRAWER -->
+  <section id="readerOverlay" class="hidden fixed inset-0 z-40">
+    <div class="absolute inset-0 bg-black bg-opacity-60"></div>
+    <div class="absolute inset-y-0 right-0 w-full md:w-[860px] bg-[#0b1020] shadow-2xl glass flex flex-col">
+      <div class="p-4 md:p-6 flex items-center gap-3 border-b border-white border-opacity-10">
+        <button id="closeReaderBtn" class="btn btn-ghost">Close</button>
+        <div class="flex-1"></div>
+        <div id="readerTitle" class="font-bold"></div>
+      </div>
+      <div class="flex-1 overflow-hidden">
+        <!-- Removed allow-same-origin for greater sandboxing -->
+        <iframe id="readerFrame" class="w-full h-full" title="Book Reader" sandbox="allow-scripts allow-forms"></iframe>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAY MODAL -->
+  <section id="payModal" class="hidden fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black bg-opacity-60"></div>
+    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-md w-[92vw] glass rounded-3xl p-6 card-sheen">
+      <h4 class="text-xl font-extrabold mb-1">Purchase</h4>
+      <p id="payModalDesc" class="opacity-80 mb-4">Complete your purchase to unlock this book.</p>
+      <div id="paypalButtons" class="mb-3"></div>
+      <button id="cancelPayBtn" class="btn btn-ghost w-full">Cancel</button>
+    </div>
+  </section>
+
+  <footer class="py-10 text-center opacity-70 text-sm">© <span id="year"></span> Golden Scrolls</footer>
+
+  <script>
+    const APP_ID = "5E90AA5A-556F-4BF5-BC9D-DC2EC1313DC6";
+    const API_KEY = "B37B6BE6-BE07-412B-8E16-6C7926DA1B25";
+
+    const state = {
+      user: null,
+      deviceId: null,
+      books: [],
+      selectedBook: null,
+      deferredAction: null, // for post-login
+    };
+
+    function el(id){ return document.getElementById(id); }
+
+    function uuid(){
+      return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+        (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+      );
+    }
+
+    function getDeviceId(){
+      let d = localStorage.getItem("gs_device_id");
+      if(!d){ d = `GS-${uuid()}`; localStorage.setItem("gs_device_id", d); }
+      return d;
+    }
+
+    async function initBackendless(){
+      Backendless.serverURL = "https://eu-api.backendless.com";
+      Backendless.initApp(APP_ID, API_KEY);
+    }
+
+    function setAuthUI(loggedIn){
+      el('authSection').classList.toggle('hidden', loggedIn);
+      el('catalogSection').classList.toggle('hidden', !loggedIn);
+      el('userBadge').classList.toggle('hidden', !loggedIn);
+    }
+
+    function info(msg){ el('authMsg').textContent = msg || ''; }
+
+    function isPaidFor(bookId){
+      try{
+        const paid = JSON.parse(state.user?.paidbooks || '[]');
+        return paid.includes(bookId);
+      }catch{ return false; }
+    }
+
+    function renderBooks(items){
+      const q = (el('searchInput').value || '').trim().toLowerCase();
+      const grid = el('booksGrid');
+      grid.innerHTML = '';
+      const filtered = items.filter(b => {
+        const hay = `${b.author||''} ${b.description||''}`.toLowerCase();
+        return hay.includes(q);
+      });
+
+      filtered.forEach(b => {
+        const paid = isPaidFor(b.objectId);
+        const card = document.createElement('article');
+        card.className = "glass rounded-3xl overflow-hidden shadow-xl card-sheen flex flex-col";
+        card.innerHTML = `
+          <div class="relative">
+            <img src="${b.cover || 'https://picsum.photos/seed/book/640/900'}" alt="cover" class="w-full h-56 object-cover"/>
+            <div class="absolute top-3 left-3 tag">${b.author || 'Unknown'}</div>
+            <div class="absolute bottom-3 left-3 right-3 flex items-center gap-2">
+              ${paid ? '<span class="tag bg-green-500 bg-opacity-20">Owned</span>' : `<span class="tag">$${(Number(b.price)||0).toFixed(2)}</span>`}
+              <span class="tag">★ ${Number(b.rating||0).toFixed(1)}</span>
+            </div>
+          </div>
+          <div class="p-4 flex-1 flex flex-col gap-3">
+            <p class="text-sm opacity-80 line-clamp-3">${b.description || 'No description provided.'}</p>
+            <div class="mt-auto grid grid-cols-2 gap-2">
+              <button data-id="${b.objectId}" class="btn btn-primary w-full readBtn">${paid ? 'Read' : 'Preview'}</button>
+              ${paid ? `<a href="#" data-id="${b.objectId}" class="btn btn-ghost w-full openLinkBtn">Link</a>` : `<button data-id="${b.objectId}" class="btn btn-ghost w-full buyBtn">Buy</button>`}
+            </div>
+          </div>`;
+        grid.appendChild(card);
+      });
+
+      // Attach handlers
+      grid.querySelectorAll('.readBtn').forEach(btn => btn.addEventListener('click', (e) => requireLoginThen(() => onReadClick(e))));
+      grid.querySelectorAll('.buyBtn').forEach(btn => btn.addEventListener('click', (e) => requireLoginThen(() => onBuyClick(e))));
+      grid.querySelectorAll('.openLinkBtn').forEach(btn => btn.addEventListener('click', e => {
+        e.preventDefault();
+        const id = e.currentTarget.getAttribute('data-id');
+        const book = state.books.find(x=>x.objectId===id);
+        if(book?.links) window.open(book.links, '_blank');
+      }));
+    }
+
+    function requireLoginThen(action){
+      if(!state.user){
+        state.deferredAction = action;
+        showAuthModal('login');
+      }else{
+        action();
+      }
+    }
+
+    async function onReadClick(e){
+      const id = e.currentTarget.getAttribute('data-id');
+      const book = state.books.find(b => b.objectId === id);
+      if(!book) return;
+      const paid = isPaidFor(id);
+      if(!paid){
+        openReader(book, true);
+        return;
+      }
+      openReader(book, false);
+    }
+
+    function openReader(book, preview){
+      state.selectedBook = book;
+      el('readerTitle').textContent = preview ? `Preview — ${book.author||''}` : `${book.author||''}`;
+      const url = book.bookUrl || book.links || '';
+      const frame = el('readerFrame');
+      if(/^javascript:/i.test(url)){ alert('Invalid book URL'); return; }
+      frame.src = url;
+      el('readerOverlay').classList.remove('hidden');
+    }
+
+    function closeReader(){
+      el('readerFrame').src = 'about:blank';
+      el('readerOverlay').classList.add('hidden');
+    }
+
+    function onBuyClick(e){
+      const id = e.currentTarget.getAttribute('data-id');
+      const book = state.books.find(b => b.objectId === id);
+      state.selectedBook = book;
+      el('payModalDesc').textContent = `Buy this book by ${book.author||'Unknown'} for $${Number(book.price||0).toFixed(2)}`;
+      el('payModal').classList.remove('hidden');
+
+      // Render PayPal buttons fresh each open
+      el('paypalButtons').innerHTML = '';
+      paypal.Buttons({
+        createOrder: function(data, actions){
+          return actions.order.create({
+            purchase_units: [{ amount: { value: String(Number(book.price||0).toFixed(2)) }, description: `Book ${book.objectId}` }]
+          });
+        },
+        onApprove: async (data, actions) => {
+          const details = await actions.order.capture();
+          await attachPaymentAndUnlock(details, book);
+          el('payModal').classList.add('hidden');
+          renderBooks(state.books);
+          alert('Payment successful! Book unlocked.');
+        },
+        onError(err){
+          console.error(err);
+          alert('Payment error. Please try again.');
+        }
+      }).render('#paypalButtons');
+    }
+
+    async function attachPaymentAndUnlock(details, book){
+      const Users = Backendless.Data.of('Users');
+      const user = await Users.findById(state.user.objectId);
+      let paid = [];
+      try { paid = JSON.parse(user.paidbooks || '[]'); } catch { paid = []; }
+      if(!paid.includes(book.objectId)) paid.push(book.objectId);
+      user.paidbooks = JSON.stringify(paid);
+      user.Paid = true;
+      user.PaymentID = details?.id || details?.purchase_units?.[0]?.payments?.captures?.[0]?.id || 'N/A';
+      user.paymentstatus = details?.status || 'APPROVED';
+      state.user = await Users.save(user);
+      localStorage.setItem('gs_user', JSON.stringify(state.user));
+    }
+
+    function logout(){
+      localStorage.removeItem('gs_user');
+      state.user = null;
+      setAuthUI(false);
+      el('userEmail').textContent = 'guest';
+    }
+
+    function showAuthModal(mode){
+      el('authSection').classList.remove('hidden');
+      setAuthMode(mode === 'signup');
+    }
+
+    function hideAuthModal(){
+      el('authSection').classList.add('hidden');
+      info('');
+      el('passwordInput').value = '';
+      el('confirmPasswordInput').value = '';
+    }
+
+    function setAuthMode(signup){
+      if(signup){
+        el('authTitle').textContent = "Create Account";
+        el('authDesc').textContent = "Sign up with your email and create a password.";
+        el('authBtnText').textContent = "Sign Up";
+        el('toggleAuthMode').textContent = "Have an account? Sign In";
+        el('confirmPasswordDiv').style.display = '';
+      }else{
+        el('authTitle').textContent = "Welcome back";
+        el('authDesc').textContent = "Sign in with your email and password.";
+        el('authBtnText').textContent = "Sign In";
+        el('toggleAuthMode').textContent = "New here? Create Account";
+        el('confirmPasswordDiv').style.display = 'none';
+      }
+      el('loginForm').dataset.signup = signup ? "1" : "";
+    }
+
+    async function signInOrRegister(email, name, password, confirmPassword, isSignUp){
+      info(isSignUp ? "Creating account…" : "Signing in…");
+      const Users = Backendless.Data.of("Users");
+      const deviceId = state.deviceId;
+
+      if(isSignUp){
+        if(password !== confirmPassword) throw new Error("Passwords do not match.");
+        if(password.length < 6) throw new Error("Password must be at least 6 characters.");
+        // Check if user exists
+        const existing = await Users.find({ where: `email='${email.replace(/'/g, "''")}'`, pageSize: 1 });
+        if(existing.length) throw new Error("Email already registered.");
+        // Register
+        const user = new Backendless.User();
+        user.email = email;
+        user.name = name;
+        user.password = password;
+        user.deviceid = deviceId;
+        user.accountstatus = 'active';
+        user.Paid = false;
+        user.paidbooks = JSON.stringify([]);
+        user.paymentstatus = 'none';
+        // Register and login
+        await Backendless.UserService.register(user);
+        // Now login to get session
+        const loggedIn = await Backendless.UserService.login(email, password, true);
+        state.user = loggedIn;
+        localStorage.setItem('gs_user', JSON.stringify(loggedIn));
+        el('userEmail').textContent = loggedIn.email;
+        setAuthUI(true);
+        await loadBooks();
+        info('');
+        hideAuthModal();
+        if(state.deferredAction){ state.deferredAction(); state.deferredAction = null; }
+        return loggedIn;
+      }else{
+        // Login
+        let loginUser;
+        try{
+          loginUser = await Backendless.UserService.login(email, password, true);
+        }catch(e){
+          throw new Error("Wrong email or password.");
+        }
+        // Device lock
+        if(!loginUser.deviceid){
+          loginUser.deviceid = deviceId;
+          await Users.save(loginUser);
+        } else if(loginUser.deviceid !== deviceId){
+          await Backendless.UserService.logout();
+          throw new Error("This account is already linked to a different device.");
+        }
+        state.user = loginUser;
+        localStorage.setItem('gs_user', JSON.stringify(loginUser));
+        el('userEmail').textContent = loginUser.email;
+        setAuthUI(true);
+        await loadBooks();
+        info('');
+        hideAuthModal();
+        if(state.deferredAction){ state.deferredAction(); state.deferredAction = null; }
+        return loginUser;
+      }
+    }
+
+    async function loadBooks(){
+      const Books = Backendless.Data.of("books");
+      const list = await Books.find({ pageSize: 50, sortBy: ["created DESC"] });
+      state.books = list;
+      renderBooks(list);
+    }
+
+    // Password Reset
+    async function forgotPassword(email){
+      if(!email) throw new Error("Please enter your email above.");
+      await Backendless.UserService.restorePassword(email);
+      alert("If this email exists, a reset link was sent.");
+    }
+
+    // Event wiring
+    document.addEventListener('DOMContentLoaded', async () => {
+      el('year').textContent = new Date().getFullYear();
+      state.deviceId = getDeviceId();
+      await initBackendless();
+
+      // Restore user session from localStorage
+      const cached = localStorage.getItem('gs_user');
+      if(cached){
+        try{
+          const u = JSON.parse(cached);
+          // Re-validate device binding
+          if(!u.deviceid || u.deviceid === state.deviceId){
+            // Also check if Backendless session is valid
+            if(await Backendless.UserService.isValidLogin()){
+              state.user = u;
+              setAuthUI(true);
+              el('userEmail').textContent = u.email || 'user';
+              await loadBooks();
+            }else{
+              logout();
+            }
+          } else {
+            logout();
+          }
+        }catch{ logout(); }
+      }
+
+      el('refreshBtn').addEventListener('click', () => renderBooks(state.books));
+      el('searchInput').addEventListener('input', () => renderBooks(state.books));
+      el('logoutBtn').addEventListener('click', () => { Backendless.UserService.logout(); logout(); });
+      el('closeReaderBtn').addEventListener('click', closeReader);
+      el('cancelPayBtn').addEventListener('click', () => el('payModal').classList.add('hidden'));
+      el('closeAuthModalBtn').addEventListener('click', () => { hideAuthModal(); state.deferredAction = null; });
+
+      // Auth modal toggle
+      el('toggleAuthMode').addEventListener('click', (e) => {
+        e.preventDefault();
+        setAuthMode(!(el('loginForm').dataset.signup === "1"));
+      });
+
+      // Forgot password
+      el('forgotPasswordLink').addEventListener('click', async (e) => {
+        e.preventDefault();
+        const email = el('emailInput').value.trim();
+        try{
+          await forgotPassword(email);
+        }catch(err){
+          alert(err.message || "Could not send reset link.");
+        }
+      });
+
+      // Auth form submit
+      el('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = el('emailInput').value.trim();
+        const name = el('nameInput').value.trim();
+        const password = el('passwordInput').value;
+        const confirmPassword = el('confirmPasswordInput').value;
+        const isSignUp = el('loginForm').dataset.signup === "1";
+        try{
+          await signInOrRegister(email, name, password, confirmPassword, isSignUp);
+        }catch(err){
+          info(err.message || 'Login failed');
+        }
+      });
+
+      // Initial UI state
+      setAuthMode(false);
+      el('authSection').classList.add('hidden');
+    });
+  </script>
+</body>
+</html>
